@@ -81,17 +81,23 @@ int main(int argc, char *argv[])
                                                   boost::bind(&Takeoff_Land_Data_t::feed, &fsm.takeoff_land_data, _1),
                                                   ros::VoidConstPtr(),
                                                   ros::TransportHints().tcpNoDelay());
+
     // 向无人机发送期望的姿态角度和推力控制量
     fsm.ctrl_FCU_pub = nh.advertise<mavros_msgs::AttitudeTarget>("/mavros/setpoint_raw/attitude", 10);
     // 轨迹启动触发？
     fsm.traj_start_trigger_pub = nh.advertise<geometry_msgs::PoseStamped>("/traj_start_trigger", 10);
-
-    fsm.debug_pub = nh.advertise<quadrotor_msgs::Px4ctrlDebug>("/debugPx4ctrl", 10); // debug
-
+    // debug
+    fsm.debug_pub = nh.advertise<quadrotor_msgs::Px4ctrlDebug>("/debugPx4ctrl", 10);
+    // 设置飞控模式
     fsm.set_FCU_mode_srv = nh.serviceClient<mavros_msgs::SetMode>("/mavros/set_mode");
+    // 用于飞行器解锁与锁定
     fsm.arming_client_srv = nh.serviceClient<mavros_msgs::CommandBool>("/mavros/cmd/arming");
+    // 向飞行器发送指令，包括：设置目标航点、发送遥控器信号、设置启动/停止等  该消息将命令编码为最多 7 个浮点参数
     fsm.reboot_FCU_srv = nh.serviceClient<mavros_msgs::CommandLong>("/mavros/cmd/command");
-
+    // mavros 参考：http://wiki.ros.org/mavros#mavros.2FPlugins.command
+    // 话题内容 https://mavlink.io/en/services/command.html
+    // 将程序暂停 0.5 s
+    // 创建 0.5 s的 Duration 对象，并调用对象的 .sleep 函数 
     ros::Duration(0.5).sleep();
 
     if (param.takeoff_land.no_RC)
@@ -122,7 +128,7 @@ int main(int argc, char *argv[])
             ROS_ERROR("Unable to connnect to PX4!!!");
     }
 
-    ros::Rate r(param.ctrl_freq_max);
+    ros::Rate r(param.ctrl_freq_max);    // ctrl_param_fpv.yaml 中设置为 100 Hz
     while (ros::ok())
     {
         r.sleep();
